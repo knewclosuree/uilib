@@ -85,7 +85,7 @@ GlassUI.Theme = {
     Stroke       = Color3.fromRGB(255, 255, 255),
     Success      = Color3.fromRGB(95, 220, 140),
     Danger       = Color3.fromRGB(255, 95, 110),
-    Glass        = 0.28,   -- base background transparency for glass frames
+    Glass        = 0.12,   -- base background transparency for glass frames
     Font         = Enum.Font.GothamMedium,
     FontBold     = Enum.Font.GothamBold,
 }
@@ -1213,6 +1213,27 @@ function GlassUI:CreateWindow(opts)
     })
     corner(root, 14)
     attachGlow(root, 1.4)
+    Create("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(200,200,220)),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 1),
+        }),
+        Parent = root,
+    })
+    win.Root = root
+
+    local backing = Create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(12, 12, 18),
+        BackgroundTransparency = 0.3,      -- slightly transparent, still glass feel
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 1, 0),
+        ZIndex = 1,                        -- behind all other content
+        Parent = root,
+    })
+    corner(backing, 14)                    -- match root radius
+
+    -- (optional) keep the top sheen gradient on the root itself
     Create("UIGradient", {
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(200,200,220)),
