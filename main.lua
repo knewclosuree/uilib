@@ -225,13 +225,16 @@ end
 
 -- Build the signature frosted-glass panel: dark translucent fill + sheen + stroke
 local function glassPanel(props)
-    local frame = Create("Frame", props or {})
-    frame.BackgroundColor3       = props and props.BackgroundColor3 or GlassUI.Theme.Surface
-    frame.BackgroundTransparency = props and props.BackgroundTransparency or GlassUI.Theme.Glass
-    frame.BorderSizePixel        = 0
-    corner(frame, props and props._radius or 10)
+    local propsCopy = props or {}
+    local radius = propsCopy._radius or 10
+    propsCopy._radius = nil   -- remove so we never try to assign it to the Frame
 
-    -- subtle top-down sheen so it reads like glass, not flat fill
+    local frame = Create("Frame", propsCopy)
+    frame.BackgroundColor3       = (props and props.BackgroundColor3) or GlassUI.Theme.Surface
+    frame.BackgroundTransparency = (props and props.BackgroundTransparency) or GlassUI.Theme.Glass
+    frame.BorderSizePixel        = 0
+    corner(frame, radius)
+
     Create("UIGradient", {
         Rotation = 90,
         Color = ColorSequence.new({
