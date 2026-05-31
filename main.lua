@@ -1065,7 +1065,7 @@ function Window:CreateTab(opts)
         BorderSizePixel = 0, ScrollBarThickness = 3,
         ScrollBarImageColor3 = GlassUI.Theme.Accent,
         Size = UDim2.new(1, 0, 1, 0), CanvasSize = UDim2.new(0, 0, 0, 0),
-        AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         Parent = self.Pages,
     })
     Create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = page })
