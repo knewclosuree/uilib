@@ -6,7 +6,7 @@
  local Window = GlassUI:CreateWindow({
     Title    = "My Hub",
     SubTitle = "v1.0",
-    Size     = UDim2.new(0, 620, 0, 420),
+    Size     = UDim2.new(0, 700, 0, 450),   -- now wider
     Key      = "Key: Active",
 })
 Window:SetUserProfile({ Status = "Premium" })
@@ -1243,6 +1243,14 @@ function Window:Show()
     Acrylic:Add()
 end
 
+function Window:ToggleVisibility()
+    if not self.Root.Visible or self.Root.GroupTransparency > 0.5 then
+        self:Show()
+    else
+        self:Hide()
+    end
+end
+
 function Window:Destroy()
     Acrylic:Remove()
     if self._screen then self._screen:Destroy() end
@@ -1270,9 +1278,9 @@ function GlassUI:CreateWindow(opts)
     local win = setmetatable({}, Window)
     win.Tabs      = {}
     win.Open      = true
-    win.Minimized = false                                      -- NEW
+    win.Minimized = false
     win._screen   = self._screen
-    win._size     = opts.Size or UDim2.new(0, 620, 0, 420)    -- NEW: stored for restore
+    win._size     = opts.Size or UDim2.new(0, 700, 0, 450)   -- default wider now
 
     -- root canvas group
     local root = Create("CanvasGroup", {
@@ -1333,7 +1341,7 @@ function GlassUI:CreateWindow(opts)
         return b
     end
     topBtn("-", -42, function() win:Toggle() end)
-    topBtn("X", -12, function() win:Hide() end)    -- CHANGED: Hide not Destroy
+    topBtn("X", -12, function() win:Hide() end)
 
     -- sidebar
     local sidebar = glassPanel({
@@ -1360,7 +1368,7 @@ function GlassUI:CreateWindow(opts)
     padding(win.Pages, 10)
 
     -- ┌─────────────────────────────────────────────────────────────────────┐
-    -- │ Profile page: NEW – shown when user clicks the profile panel        │
+    -- │ Profile page: shown when user clicks the profile panel              │
     -- └─────────────────────────────────────────────────────────────────────┘
     local profilePage = Create("ScrollingFrame", {
         Visible = false, Active = true, BackgroundTransparency = 1,
@@ -1378,28 +1386,67 @@ function GlassUI:CreateWindow(opts)
     win._profilePage = profilePage
     win._profileOpen = false
 
-    -- fake tab-like object so Components can parent into this page
     local profileTab = { _content = profilePage }
 
-    -- helper: labelled read-only info row
+    -- helper: labelled info row (auto‑height, no truncation)
     local function infoRow(label, value)
-        local row = elementRow(profilePage, 36)
-        padding(row, 10)
-        Create("TextLabel", {
-            Text = label, Font = GlassUI.Theme.Font, TextSize = 13,
-            TextColor3 = GlassUI.Theme.SubText, TextXAlignment = Enum.TextXAlignment.Left,
-            BackgroundTransparency = 1, Size = UDim2.new(0.45, 0, 1, 0), Parent = row,
+        local row = glassPanel({
+            BackgroundColor3 = GlassUI.Theme.Element,
+            BackgroundTransparency = 0.35,
+            AutomaticSize = Enum.AutomaticSize.Y,     -- wrap content
+            Size = UDim2.new(1, 0, 0, 0),
+            Parent = profilePage,
         })
-        Create("TextLabel", {
-            Text = value, Font = GlassUI.Theme.FontBold, TextSize = 12,
-            TextColor3 = GlassUI.Theme.Text, TextXAlignment = Enum.TextXAlignment.Right,
-            TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1,
-            Position = UDim2.new(0.45, 0, 0, 0), Size = UDim2.new(0.55, 0, 1, 0),
+        Create("UIStroke", {
+            Color = GlassUI.Theme.Stroke,
+            Thickness = 1,
+            Transparency = 0.88,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            LineJoinMode = Enum.LineJoinMode.Round,
             Parent = row,
         })
+        padding(row, 10)
+
+        local labelLbl = Create("TextLabel", {
+            Text = label, Font = GlassUI.Theme.Font, TextSize = 13,
+            TextColor3 = GlassUI.Theme.SubText, TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1, Size = UDim2.new(0.4, 0, 0, 18),
+            Parent = row,
+        })
+        local valueLbl = Create("TextLabel", {
+            Text = value, Font = GlassUI.Theme.FontBold, TextSize = 12,
+            TextColor3 = GlassUI.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0.42, 0, 0, 0),
+            Size = UDim2.new(0.58, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Parent = row,
+        })
+        return valueLbl   -- allow later updates
     end
 
-    -- Detect executor name if possible
+    -- HWID / IP / License logic
+    local infoLabels = {}
+
+    -- Placeholder functions (you can replace with real logic later)
+    local function getHWID()
+        local success, id = pcall(function()
+            return game:GetService("RbxAnalyticsService"):GetClientId()
+        end)
+        if success and id then return id end
+        return "Unavailable"
+    end
+
+    local function getIP()
+        local success, ip = pcall(function()
+            return game:HttpGetAsync("https://api.ipify.org")
+        end)
+        if success and ip then return ip end
+        return "Unavailable"
+    end
+
+    -- Detect executor name
     local executorName = "Unknown"
     pcall(function()
         if identifyexecutor then executorName = identifyexecutor() end
@@ -1407,33 +1454,47 @@ function GlassUI:CreateWindow(opts)
 
     -- Account section
     Components.Section(profileTab, "Account")
-    infoRow("HWID",     "XXXX-XXXX-XXXX-XXXX")
-    infoRow("License",  "LIC-XXXX-XXXX-XXXX")
-    infoRow("Expiry",   "Never")
-    infoRow("Executor", executorName)
+    infoLabels.hwid    = infoRow("HWID",     "Fetching...")
+    infoLabels.ip      = infoRow("IP",       "Fetching...")
+    infoLabels.license = infoRow("License",  "LIC-XXXX-XXXX-XXXX")
+    infoLabels.expiry  = infoRow("Expiry",   "Never")
+    infoLabels.executor = infoRow("Executor", executorName)
+
+    -- Fetch HWID and IP asynchronously and update the labels
+    task.spawn(function()
+        infoLabels.hwid.Text    = getHWID()
+        infoLabels.ip.Text      = getIP()
+    end)
 
     -- Glow settings section
     Components.Section(profileTab, "Glow Settings")
-
     Components.Dropdown(profileTab, {
         Name    = "Animation",
         Options = { "Static", "Breathe", "Pulse", "Flicker", "Wave", "Heartbeat" },
         Default = GlassUI.Glow.Animation,
         Callback = function(val) GlassUI:SetGlowAnimation(val) end,
     })
-
     Components.Toggle(profileTab, {
         Name    = "Rainbow",
         Default = GlassUI.Glow.Rainbow,
         Callback = function(val) GlassUI:SetGlowRainbow(val) end,
     })
-
     Components.Slider(profileTab, {
         Name     = "Brightness",
         Min      = 0, Max = 100,
         Default  = math.floor(GlassUI.Glow.Brightness * 100),
         Suffix   = "%", Increment = 5,
         Callback = function(val) GlassUI:SetGlowBrightness(val / 100) end,
+    })
+
+    -- Keybinds section on profile page
+    Components.Section(profileTab, "Keybinds")
+    Components.Keybind(profileTab, {
+        Name = "Toggle UI",
+        Default = Enum.KeyCode.RightShift,
+        Callback = function()
+            win:ToggleVisibility()
+        end,
     })
 
     -- optional auto profile + key
