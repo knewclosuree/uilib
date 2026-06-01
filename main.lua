@@ -6,7 +6,7 @@
  local Window = GlassUI:CreateWindow({
     Title    = "My Hub",
     SubTitle = "v1.0",
-    Size     = UDim2.new(0, 700, 0, 450),   -- now wider
+    Size     = UDim2.new(0, 700, 0, 450),
     Key      = "Key: Active",
 })
 Window:SetUserProfile({ Status = "Premium" })
@@ -446,9 +446,6 @@ end
 --  COMPONENT BUILDERS
 --==============================================================================
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ elementRow: CHANGED – static stroke only, no animated glow on rows      │
--- └─────────────────────────────────────────────────────────────────────────┘
 local function elementRow(parent, height)
     local row = glassPanel({
         Size                   = UDim2.new(1, 0, 0, height or 40),
@@ -457,7 +454,6 @@ local function elementRow(parent, height)
         _radius                = 8,
         Parent                 = parent,
     })
-    -- Static, non-animated stroke on individual elements
     Create("UIStroke", {
         Color           = GlassUI.Theme.Stroke,
         Thickness       = 1,
@@ -471,7 +467,6 @@ end
 
 local Components = {}
 
--- ---- LABEL ----------------------------------------------------------------
 function Components.Label(tab, opts)
     opts = type(opts) == "table" and opts or { Text = tostring(opts) }
     local lbl = Create("TextLabel", {
@@ -492,7 +487,6 @@ function Components.Label(tab, opts)
     }
 end
 
--- ---- SECTION HEADER -------------------------------------------------------
 function Components.Section(tab, title)
     local holder = Create("Frame", {
         BackgroundTransparency = 1,
@@ -512,7 +506,6 @@ function Components.Section(tab, title)
     return holder
 end
 
--- ---- PARAGRAPH ------------------------------------------------------------
 function Components.Paragraph(tab, opts)
     opts = opts or {}
     local box = elementRow(tab._content, 0)
@@ -537,7 +530,6 @@ function Components.Paragraph(tab, opts)
     return { Instance = box }
 end
 
--- ---- BUTTON ---------------------------------------------------------------
 function Components.Button(tab, opts)
     opts = opts or {}
     local row = elementRow(tab._content, 38)
@@ -563,7 +555,6 @@ function Components.Button(tab, opts)
     }
 end
 
--- ---- TOGGLE / SWITCH ------------------------------------------------------
 function Components.Toggle(tab, opts)
     opts = opts or {}
     local state = opts.Default or false
@@ -611,7 +602,6 @@ function Components.Toggle(tab, opts)
     return api
 end
 
--- ---- SLIDER ---------------------------------------------------------------
 function Components.Slider(tab, opts)
     opts = opts or {}
     local min, max = opts.Min or 0, opts.Max or 100
@@ -684,7 +674,7 @@ function Components.Slider(tab, opts)
     return api
 end
 
--- ---- DROPDOWN (single + multi) -------------------------------------------
+-- ---- DROPDOWN (fixed to show initial value) -------------------------------
 function Components.Dropdown(tab, opts)
     opts = opts or {}
     local options  = opts.Options or {}
@@ -802,12 +792,15 @@ function Components.Dropdown(tab, opts)
         tween(row, 0.2, { Size = UDim2.new(1, 0, 0, h) })
     end))
 
+    -- Build options and force the default display immediately
     api:Refresh(options)
+    -- Ensure the chosen text is correct right away
+    describe()
+
     if opts.Flag then GlassUI.Flags[opts.Flag] = { value = selected, set = api.Set } end
     return api
 end
 
--- ---- KEYBIND --------------------------------------------------------------
 function Components.Keybind(tab, opts)
     opts = opts or {}
     local current = opts.Default
@@ -854,7 +847,6 @@ function Components.Keybind(tab, opts)
     return api
 end
 
--- ---- TEXT INPUT -----------------------------------------------------------
 function Components.Input(tab, opts)
     opts = opts or {}
     local row = elementRow(tab._content, 40)
@@ -887,7 +879,6 @@ function Components.Input(tab, opts)
     return api
 end
 
--- ---- COLOR PICKER ---------------------------------------------------------
 function Components.ColorPicker(tab, opts)
     opts = opts or {}
     local color = opts.Default or Color3.fromRGB(255, 255, 255)
@@ -1056,11 +1047,7 @@ function Window:CreateTab(opts)
     return self_
 end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ SelectTab: CHANGED – closes profile page and tracks current tab         │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:SelectTab(tabObj)
-    -- close profile page if it was open
     if self._profilePage then
         self._profilePage.Visible = false
         self._profileOpen = false
@@ -1076,13 +1063,9 @@ function Window:SelectTab(tabObj)
     end
 end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ _toggleProfilePage: NEW – toggle the profile/account page               │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:_toggleProfilePage()
     self._profileOpen = not self._profileOpen
     if self._profileOpen then
-        -- dim all tab buttons and hide tab pages
         for _, t in ipairs(self.Tabs) do
             t._content.Visible = false
             tween(t._btn, 0.18, {
@@ -1093,7 +1076,6 @@ function Window:_toggleProfilePage()
         if self._profilePage then self._profilePage.Visible = true end
     else
         if self._profilePage then self._profilePage.Visible = false end
-        -- restore the last selected tab
         if self._currentTab then
             self:SelectTab(self._currentTab)
         elseif #self.Tabs > 0 then
@@ -1102,9 +1084,6 @@ function Window:_toggleProfilePage()
     end
 end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ SetUserProfile: CHANGED – panel is now clickable to open profile page   │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:SetUserProfile(opts)
     opts = opts or {}
     local userId = opts.UserId or (LocalPlayer and LocalPlayer.UserId)
@@ -1150,7 +1129,6 @@ function Window:SetUserProfile(opts)
         Size = UDim2.new(1, -52, 0, 16), Parent = p,
     })
 
-    -- Small arrow indicator in bottom-right corner to hint it's clickable
     Create("TextLabel", {
         Text = "›", Font = GlassUI.Theme.FontBold, TextSize = 14,
         TextColor3 = GlassUI.Theme.SubText, BackgroundTransparency = 1,
@@ -1158,7 +1136,6 @@ function Window:SetUserProfile(opts)
         Size = UDim2.new(0, 14, 0, 14), Parent = p,
     })
 
-    -- Invisible hit button over the whole panel
     local winRef = self
     local hitBtn = Create("TextButton", {
         Text = "", BackgroundTransparency = 1,
@@ -1197,11 +1174,8 @@ end
 
 function Window:Notify(opts) return GlassUI:Notify(opts) end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ Toggle: CHANGED – minimises to just the topbar (not full hide)          │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:Toggle()
-    if not self.Open then return end   -- already fully hidden, keybind handles show
+    if not self.Open then return end
     self.Minimized = not self.Minimized
     if self.Minimized then
         self.Sidebar.Visible = false
@@ -1216,9 +1190,6 @@ function Window:Toggle()
     end
 end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ Hide: NEW – fully hides the window (recoverable via keybind)            │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:Hide()
     self.Open = false
     tween(self.Root, 0.25, { GroupTransparency = 1 })
@@ -1228,9 +1199,6 @@ function Window:Hide()
     end)
 end
 
--- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ Show: NEW – restores window from fully hidden state                     │
--- └─────────────────────────────────────────────────────────────────────────┘
 function Window:Show()
     if self.Open and not self.Minimized then return end
     self.Open      = true
@@ -1280,9 +1248,8 @@ function GlassUI:CreateWindow(opts)
     win.Open      = true
     win.Minimized = false
     win._screen   = self._screen
-    win._size     = opts.Size or UDim2.new(0, 700, 0, 450)   -- default wider now
+    win._size     = opts.Size or UDim2.new(0, 700, 0, 450)
 
-    -- root canvas group
     local root = Create("CanvasGroup", {
         Name = "Window",
         AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -1295,7 +1262,6 @@ function GlassUI:CreateWindow(opts)
     attachGlow(root, 1.4)
     win.Root = root
 
-    -- dark backing (subtle depth)
     local backing = Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(12, 12, 18),
         BackgroundTransparency = 0.75,
@@ -1306,7 +1272,6 @@ function GlassUI:CreateWindow(opts)
     })
     corner(backing, 14)
 
-    -- top bar (draggable)
     local top = Create("Frame", {
         BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), Parent = root,
     })
@@ -1343,7 +1308,6 @@ function GlassUI:CreateWindow(opts)
     topBtn("-", -42, function() win:Toggle() end)
     topBtn("X", -12, function() win:Hide() end)
 
-    -- sidebar
     local sidebar = glassPanel({
         BackgroundColor3 = GlassUI.Theme.Surface, BackgroundTransparency = 0.4,
         Position = UDim2.new(0, 12, 0, 50), Size = UDim2.new(0, 170, 1, -62),
@@ -1359,7 +1323,6 @@ function GlassUI:CreateWindow(opts)
     })
     Create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = win.TabList })
 
-    -- pages container
     win.Pages = glassPanel({
         BackgroundColor3 = GlassUI.Theme.Surface, BackgroundTransparency = 0.45,
         Position = UDim2.new(0, 192, 0, 50), Size = UDim2.new(1, -204, 1, -62),
@@ -1367,9 +1330,7 @@ function GlassUI:CreateWindow(opts)
     })
     padding(win.Pages, 10)
 
-    -- ┌─────────────────────────────────────────────────────────────────────┐
-    -- │ Profile page: shown when user clicks the profile panel              │
-    -- └─────────────────────────────────────────────────────────────────────┘
+    -- Profile page
     local profilePage = Create("ScrollingFrame", {
         Visible = false, Active = true, BackgroundTransparency = 1,
         BorderSizePixel = 0, ScrollBarThickness = 3,
@@ -1388,12 +1349,11 @@ function GlassUI:CreateWindow(opts)
 
     local profileTab = { _content = profilePage }
 
-    -- helper: labelled info row (auto‑height, no truncation)
     local function infoRow(label, value)
         local row = glassPanel({
             BackgroundColor3 = GlassUI.Theme.Element,
             BackgroundTransparency = 0.35,
-            AutomaticSize = Enum.AutomaticSize.Y,     -- wrap content
+            AutomaticSize = Enum.AutomaticSize.Y,
             Size = UDim2.new(1, 0, 0, 0),
             Parent = profilePage,
         })
@@ -1407,7 +1367,7 @@ function GlassUI:CreateWindow(opts)
         })
         padding(row, 10)
 
-        local labelLbl = Create("TextLabel", {
+        Create("TextLabel", {
             Text = label, Font = GlassUI.Theme.Font, TextSize = 13,
             TextColor3 = GlassUI.Theme.SubText, TextXAlignment = Enum.TextXAlignment.Left,
             BackgroundTransparency = 1, Size = UDim2.new(0.4, 0, 0, 18),
@@ -1423,13 +1383,11 @@ function GlassUI:CreateWindow(opts)
             AutomaticSize = Enum.AutomaticSize.Y,
             Parent = row,
         })
-        return valueLbl   -- allow later updates
+        return valueLbl
     end
 
-    -- HWID / IP / License logic
     local infoLabels = {}
 
-    -- Placeholder functions (you can replace with real logic later)
     local function getHWID()
         local success, id = pcall(function()
             return game:GetService("RbxAnalyticsService"):GetClientId()
@@ -1446,13 +1404,11 @@ function GlassUI:CreateWindow(opts)
         return "Unavailable"
     end
 
-    -- Detect executor name
     local executorName = "Unknown"
     pcall(function()
         if identifyexecutor then executorName = identifyexecutor() end
     end)
 
-    -- Account section
     Components.Section(profileTab, "Account")
     infoLabels.hwid    = infoRow("HWID",     "Fetching...")
     infoLabels.ip      = infoRow("IP",       "Fetching...")
@@ -1460,13 +1416,12 @@ function GlassUI:CreateWindow(opts)
     infoLabels.expiry  = infoRow("Expiry",   "Never")
     infoLabels.executor = infoRow("Executor", executorName)
 
-    -- Fetch HWID and IP asynchronously and update the labels
     task.spawn(function()
-        infoLabels.hwid.Text    = getHWID()
-        infoLabels.ip.Text      = getIP()
+        infoLabels.hwid.Text = getHWID()
+        infoLabels.ip.Text   = getIP()
     end)
 
-    -- Glow settings section
+    -- Glow settings (with working dropdown)
     Components.Section(profileTab, "Glow Settings")
     Components.Dropdown(profileTab, {
         Name    = "Animation",
@@ -1487,7 +1442,7 @@ function GlassUI:CreateWindow(opts)
         Callback = function(val) GlassUI:SetGlowBrightness(val / 100) end,
     })
 
-    -- Keybinds section on profile page
+    -- Keybinds
     Components.Section(profileTab, "Keybinds")
     Components.Keybind(profileTab, {
         Name = "Toggle UI",
@@ -1497,7 +1452,6 @@ function GlassUI:CreateWindow(opts)
         end,
     })
 
-    -- optional auto profile + key
     if opts.Profile ~= false then
         win:SetUserProfile(opts.Profile or {})
     end
