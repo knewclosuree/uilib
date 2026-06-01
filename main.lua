@@ -686,8 +686,7 @@ function Components.Dropdown(tab, opts)
     local open = false
 
     local row = elementRow(tab._content, 40)
-    row.ClipsDescendants = true
-    row.AutomaticSize = Enum.AutomaticSize.None
+    row.ClipsDescendants = false           -- no clipping, we'll hide/show list instead
     padding(row, 10)
     Create("UIListLayout", { Padding = UDim.new(0, 6), Parent = row })
 
@@ -715,7 +714,9 @@ function Components.Dropdown(tab, opts)
 
     local listHolder = Create("Frame", {
         BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y, Parent = row,
+        Visible = false,                            -- start hidden
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Parent = row,
     })
     Create("UIListLayout", { Padding = UDim.new(0, 4), Parent = listHolder })
 
@@ -747,8 +748,10 @@ function Components.Dropdown(tab, opts)
         else
             selected = name
             open = false
+            listHolder.Visible = false
+            row.AutomaticSize = Enum.AutomaticSize.None
+            row.Size = UDim2.new(1, 0, 0, 40)
             tween(arrow, 0.2, { Rotation = 0 })
-            tween(row, 0.2, { Size = UDim2.new(1, 0, 0, 40) })
         end
         refreshVisual()
         if opts.Flag then GlassUI.Flags[opts.Flag] = { value = selected, set = api.Set } end
@@ -787,15 +790,20 @@ function Components.Dropdown(tab, opts)
 
     track(head.MouseButton1Click:Connect(function()
         open = not open
-        tween(arrow, 0.2, { Rotation = open and 180 or 0 })
-        local h = open and (40 + (#options * 32) + 6) or 40
-        tween(row, 0.2, { Size = UDim2.new(1, 0, 0, h) })
+        if open then
+            listHolder.Visible = true
+            row.AutomaticSize = Enum.AutomaticSize.Y   -- let the row grow to fit the list
+            tween(arrow, 0.2, { Rotation = 180 })
+        else
+            listHolder.Visible = false
+            row.AutomaticSize = Enum.AutomaticSize.None
+            row.Size = UDim2.new(1, 0, 0, 40)
+            tween(arrow, 0.2, { Rotation = 0 })
+        end
     end))
 
-    -- Build options and force the default display immediately
     api:Refresh(options)
-    -- Ensure the chosen text is correct right away
-    describe()
+    describe()   -- show default immediately
 
     if opts.Flag then GlassUI.Flags[opts.Flag] = { value = selected, set = api.Set } end
     return api
