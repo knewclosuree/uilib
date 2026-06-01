@@ -2,14 +2,14 @@
 ═══════════════════════════════════════════════════════════════════════════════
     FrostLib  •  Modular Glass / Gaussian-Blur UI Library for Roblox
     ---------------------------------------------------------------------------
-  QUICK START: 
+  QUICK START:
  local Window = GlassUI:CreateWindow({
     Title    = "My Hub",
     SubTitle = "v1.0",
     Size     = UDim2.new(0, 620, 0, 420),
-    Key      = "Key: Active",   -- shows a key chip in the sidebar
+    Key      = "Key: Active",
 })
-Window:SetUserProfile({ Status = "Premium" })  -- auto-pulls avatar from LocalPlayer
+Window:SetUserProfile({ Status = "Premium" })
 
 local main = Window:CreateTab({ Name = "Main" })
 main:CreateSection("Combat")
@@ -34,14 +34,12 @@ local HttpService      = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
-
 local function getGuiParent()
     local ok, hui = pcall(function() return gethui() end)
     if ok and hui then return hui end
     local cg = game:GetService("CoreGui")
     return cg
 end
-
 
 local function protect(gui)
     local ok = pcall(function()
@@ -52,7 +50,6 @@ local function protect(gui)
     end)
     return ok
 end
-
 
 local hasFiles = (typeof(writefile) == "function")
                  and (typeof(readfile) == "function")
@@ -65,14 +62,13 @@ local hasFiles = (typeof(writefile) == "function")
 local GlassUI = {}
 GlassUI.__index = GlassUI
 
-GlassUI.Version       = "1.0.0"
-GlassUI.Flags         = {}     -- flag -> { value, set(v) }  (every interactive element)
-GlassUI.Windows       = {}     -- list of created windows
-GlassUI.Connections   = {}     -- tracked connections for :Destroy()
-GlassUI.Registry      = {}     -- component name -> builder(parent, opts)
-GlassUI.ConfigFolder  = "GlassUI"
+GlassUI.Version      = "1.0.0"
+GlassUI.Flags        = {}
+GlassUI.Windows      = {}
+GlassUI.Connections  = {}
+GlassUI.Registry     = {}
+GlassUI.ConfigFolder = "GlassUI"
 
--- Theme palette (mutable; swap to reskin the whole library)
 GlassUI.Theme = {
     Background   = Color3.fromRGB(18, 18, 24),
     Surface      = Color3.fromRGB(28, 28, 38),
@@ -85,19 +81,18 @@ GlassUI.Theme = {
     Stroke       = Color3.fromRGB(255, 255, 255),
     Success      = Color3.fromRGB(95, 220, 140),
     Danger       = Color3.fromRGB(255, 95, 110),
-    Glass        = 0.12,   -- base background transparency for glass frames
+    Glass        = 0.12,
     Font         = Enum.Font.GothamMedium,
     FontBold     = Enum.Font.GothamBold,
 }
 
--- Global glow configuration. Drive these live from your script.
 GlassUI.Glow = {
     Enabled        = true,
-    Brightness     = 0.7,                       -- 0 = invisible, 1 = full strength
+    Brightness     = 0.7,
     Color          = Color3.fromRGB(120, 110, 255),
     Rainbow        = false,
     RainbowSpeed   = 1,
-    Animation      = "Breathe",                 -- preset name
+    Animation      = "Breathe",
     AnimationSpeed = 1,
     Thickness      = 1.5,
 }
@@ -106,24 +101,17 @@ GlassUI.Glow = {
 --  LOW-LEVEL UTILITIES
 --==============================================================================
 
--- Instance factory. Create("Frame", {props}, {children})
 local function Create(class, props, children)
     local inst = Instance.new(class)
     if props then
         for k, v in pairs(props) do
-            if k ~= "Parent" then
-                inst[k] = v
-            end
+            if k ~= "Parent" then inst[k] = v end
         end
     end
     if children then
-        for _, c in ipairs(children) do
-            c.Parent = inst
-        end
+        for _, c in ipairs(children) do c.Parent = inst end
     end
-    if props and props.Parent then
-        inst.Parent = props.Parent
-    end
+    if props and props.Parent then inst.Parent = props.Parent end
     return inst
 end
 
@@ -150,7 +138,6 @@ local function round(n, inc)
     return math.floor(n / inc + 0.5) * inc
 end
 
--- Rounded corner shortcut
 local function corner(parent, radius)
     return Create("UICorner", {
         CornerRadius = UDim.new(0, radius or 8),
@@ -158,7 +145,6 @@ local function corner(parent, radius)
     })
 end
 
--- Inner padding shortcut
 local function padding(parent, all)
     return Create("UIPadding", {
         PaddingTop    = UDim.new(0, all),
@@ -169,7 +155,6 @@ local function padding(parent, all)
     })
 end
 
--- Ripple click feedback for any GuiObject
 local function ripple(parent)
     track(parent.InputBegan:Connect(function(input)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -195,7 +180,6 @@ local function ripple(parent)
     end))
 end
 
--- Make a frame draggable by a handle
 local function makeDraggable(handle, target)
     local dragging, startPos, startMouse
     track(handle.InputBegan:Connect(function(input)
@@ -223,11 +207,10 @@ local function makeDraggable(handle, target)
     end))
 end
 
--- Build the signature frosted-glass panel: dark translucent fill + sheen + stroke
 local function glassPanel(props)
     local propsCopy = props or {}
     local radius = propsCopy._radius or 10
-    propsCopy._radius = nil   -- remove so we never try to assign it to the Frame
+    propsCopy._radius = nil
 
     local frame = Create("Frame", propsCopy)
     frame.BackgroundColor3       = (props and props.BackgroundColor3) or GlassUI.Theme.Surface
@@ -255,9 +238,9 @@ end
 --==============================================================================
 
 local Acrylic = {
-    Blur     = nil,
-    Refs     = 0,     -- how many windows currently want blur
-    Target   = 18,
+    Blur   = nil,
+    Refs   = 0,
+    Target = 18,
 }
 
 function Acrylic:Init()
@@ -287,12 +270,10 @@ end
 
 --==============================================================================
 --  GLOW STROKE ENGINE
---  One render loop drives every registered stroke. This is what makes the
---  toggle / brightness / colour / rainbow / animation work globally + live.
 --==============================================================================
 
 local GlowEngine = {
-    Strokes = {},     -- [stroke] = { base = thicknessMultiplier }
+    Strokes = {},
 }
 
 function GlowEngine:Register(stroke, baseMul)
@@ -304,7 +285,6 @@ function GlowEngine:Unregister(stroke)
     self.Strokes[stroke] = nil
 end
 
--- Animation presets: each returns a 0..1 intensity multiplier for time t.
 GlowEngine.Presets = {
     Static    = function() return 1 end,
     Breathe   = function(t) return math.sin(t * 2) * 0.5 + 0.5 end,
@@ -325,25 +305,22 @@ function GlowEngine:Start()
         local cfg = GlassUI.Glow
         local t   = os.clock()
 
-        -- resolve colour (rainbow overrides static colour)
         local col = cfg.Color
         if cfg.Rainbow then
             col = Color3.fromHSV((t * 0.12 * cfg.RainbowSpeed) % 1, 0.85, 1)
         end
 
-        -- resolve animation intensity 0..1
-        local presetFn = self.Presets[cfg.Animation] or self.Presets.Static
+        local presetFn  = self.Presets[cfg.Animation] or self.Presets.Static
         local intensity = presetFn(t * cfg.AnimationSpeed)
 
-        -- map brightness -> transparency window
-        local brightTrans = 1 - math.clamp(cfg.Brightness, 0, 1)        -- brightest
-        local dimTrans    = math.clamp(brightTrans + 0.55, 0, 1)        -- dimmest
+        local brightTrans = 1 - math.clamp(cfg.Brightness, 0, 1)
+        local dimTrans    = math.clamp(brightTrans + 0.55, 0, 1)
 
         for stroke, data in pairs(self.Strokes) do
             if not stroke or not stroke.Parent then
                 self.Strokes[stroke] = nil
             elseif not cfg.Enabled then
-                stroke.Transparency = 1                                 -- fully off
+                stroke.Transparency = 1
             else
                 stroke.Color        = col
                 stroke.Thickness    = cfg.Thickness * data.base
@@ -353,7 +330,6 @@ function GlowEngine:Start()
     end))
 end
 
--- Helper to attach a glow stroke to any GuiObject and auto-register it
 local function attachGlow(obj, baseMul, applyOffset)
     local stroke = Create("UIStroke", {
         Color        = GlassUI.Glow.Color,
@@ -369,20 +345,20 @@ local function attachGlow(obj, baseMul, applyOffset)
 end
 
 --==============================================================================
---  PUBLIC GLOW API  (call these from your script)
+--  PUBLIC GLOW API
 --==============================================================================
 
 function GlassUI:SetGlowEnabled(state)   self.Glow.Enabled        = state and true or false end
-function GlassUI:SetGlowBrightness(n)    self.Glow.Brightness     = math.clamp(n, 0, 1)       end
-function GlassUI:SetGlowColor(c)         self.Glow.Color          = c                          end
-function GlassUI:SetGlowRainbow(state)   self.Glow.Rainbow        = state and true or false   end
-function GlassUI:SetGlowSpeed(n)         self.Glow.AnimationSpeed = math.max(0.05, n)          end
-function GlassUI:SetGlowThickness(n)     self.Glow.Thickness      = math.max(0, n)             end
+function GlassUI:SetGlowBrightness(n)    self.Glow.Brightness     = math.clamp(n, 0, 1)      end
+function GlassUI:SetGlowColor(c)         self.Glow.Color          = c                         end
+function GlassUI:SetGlowRainbow(state)   self.Glow.Rainbow        = state and true or false  end
+function GlassUI:SetGlowSpeed(n)         self.Glow.AnimationSpeed = math.max(0.05, n)         end
+function GlassUI:SetGlowThickness(n)     self.Glow.Thickness      = math.max(0, n)            end
 function GlassUI:GetGlowPresets()        return { "Static","Breathe","Pulse","Flicker","Wave","Heartbeat" } end
 function GlassUI:SetGlowAnimation(name)
     if GlowEngine.Presets[name] then self.Glow.Animation = name end
 end
-function GlassUI:ToggleGlow()  -- one-call on/off flip (for a switch in-script)
+function GlassUI:ToggleGlow()
     self.Glow.Enabled = not self.Glow.Enabled
     return self.Glow.Enabled
 end
@@ -404,11 +380,11 @@ local function ensureNotifyHolder(screen)
         Parent                 = screen,
     })
     Create("UIListLayout", {
-        Padding            = UDim.new(0, 10),
-        VerticalAlignment  = Enum.VerticalAlignment.Bottom,
-        HorizontalAlignment= Enum.HorizontalAlignment.Right,
-        SortOrder          = Enum.SortOrder.LayoutOrder,
-        Parent             = NotifyHolder,
+        Padding             = UDim.new(0, 10),
+        VerticalAlignment   = Enum.VerticalAlignment.Bottom,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        SortOrder           = Enum.SortOrder.LayoutOrder,
+        Parent              = NotifyHolder,
     })
     return NotifyHolder
 end
@@ -432,27 +408,27 @@ function GlassUI:Notify(opts)
         Parent    = card,
     })
     Create("TextLabel", {
-        Text                 = opts.Title or "Notification",
-        Font                 = self.Theme.FontBold,
-        TextSize             = 15,
-        TextColor3           = self.Theme.Text,
-        TextXAlignment       = Enum.TextXAlignment.Left,
+        Text                   = opts.Title or "Notification",
+        Font                   = self.Theme.FontBold,
+        TextSize               = 15,
+        TextColor3             = self.Theme.Text,
+        TextXAlignment         = Enum.TextXAlignment.Left,
         BackgroundTransparency = 1,
-        Size                 = UDim2.new(1, 0, 0, 18),
-        Parent               = card,
+        Size                   = UDim2.new(1, 0, 0, 18),
+        Parent                 = card,
     })
     if opts.Content then
         Create("TextLabel", {
-            Text                 = opts.Content,
-            Font                 = self.Theme.Font,
-            TextSize             = 13,
-            TextColor3           = self.Theme.SubText,
-            TextWrapped          = true,
-            TextXAlignment       = Enum.TextXAlignment.Left,
-            AutomaticSize        = Enum.AutomaticSize.Y,
+            Text                   = opts.Content,
+            Font                   = self.Theme.Font,
+            TextSize               = 13,
+            TextColor3             = self.Theme.SubText,
+            TextWrapped            = true,
+            TextXAlignment         = Enum.TextXAlignment.Left,
+            AutomaticSize          = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
-            Size                 = UDim2.new(1, 0, 0, 0),
-            Parent               = card,
+            Size                   = UDim2.new(1, 0, 0, 0),
+            Parent                 = card,
         })
     end
     tween(card, 0.25, { BackgroundTransparency = 0.12 })
@@ -468,10 +444,11 @@ end
 
 --==============================================================================
 --  COMPONENT BUILDERS
---  Each is registered into GlassUI.Registry so the set is extensible.
 --==============================================================================
 
--- Shared row container for a labelled element inside a tab
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ elementRow: CHANGED – static stroke only, no animated glow on rows      │
+-- └─────────────────────────────────────────────────────────────────────────┘
 local function elementRow(parent, height)
     local row = glassPanel({
         Size                   = UDim2.new(1, 0, 0, height or 40),
@@ -480,7 +457,15 @@ local function elementRow(parent, height)
         _radius                = 8,
         Parent                 = parent,
     })
-    attachGlow(row, 0.85)
+    -- Static, non-animated stroke on individual elements
+    Create("UIStroke", {
+        Color           = GlassUI.Theme.Stroke,
+        Thickness       = 1,
+        Transparency    = 0.88,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        LineJoinMode    = Enum.LineJoinMode.Round,
+        Parent          = row,
+    })
     return row
 end
 
@@ -490,16 +475,16 @@ local Components = {}
 function Components.Label(tab, opts)
     opts = type(opts) == "table" and opts or { Text = tostring(opts) }
     local lbl = Create("TextLabel", {
-        Text                 = opts.Text or "Label",
-        Font                 = GlassUI.Theme.Font,
-        TextSize             = 14,
-        TextColor3           = GlassUI.Theme.SubText,
-        TextXAlignment       = Enum.TextXAlignment.Left,
-        TextWrapped          = true,
-        AutomaticSize        = Enum.AutomaticSize.Y,
+        Text                   = opts.Text or "Label",
+        Font                   = GlassUI.Theme.Font,
+        TextSize               = 14,
+        TextColor3             = GlassUI.Theme.SubText,
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        TextWrapped            = true,
+        AutomaticSize          = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
-        Size                 = UDim2.new(1, 0, 0, 18),
-        Parent               = tab._content,
+        Size                   = UDim2.new(1, 0, 0, 18),
+        Parent                 = tab._content,
     })
     return {
         Instance = lbl,
@@ -515,14 +500,14 @@ function Components.Section(tab, title)
         Parent                 = tab._content,
     })
     Create("TextLabel", {
-        Text                 = string.upper(tostring(title or "Section")),
-        Font                 = GlassUI.Theme.FontBold,
-        TextSize             = 12,
-        TextColor3           = GlassUI.Theme.Accent,
-        TextXAlignment       = Enum.TextXAlignment.Left,
+        Text                   = string.upper(tostring(title or "Section")),
+        Font                   = GlassUI.Theme.FontBold,
+        TextSize               = 12,
+        TextColor3             = GlassUI.Theme.Accent,
+        TextXAlignment         = Enum.TextXAlignment.Left,
         BackgroundTransparency = 1,
-        Size                 = UDim2.new(1, 0, 1, 0),
-        Parent               = holder,
+        Size                   = UDim2.new(1, 0, 1, 0),
+        Parent                 = holder,
     })
     return holder
 end
@@ -557,14 +542,14 @@ function Components.Button(tab, opts)
     opts = opts or {}
     local row = elementRow(tab._content, 38)
     local btn = Create("TextButton", {
-        Text                 = opts.Name or "Button",
-        Font                 = GlassUI.Theme.Font,
-        TextSize             = 14,
-        TextColor3           = GlassUI.Theme.Text,
+        Text                   = opts.Name or "Button",
+        Font                   = GlassUI.Theme.Font,
+        TextSize               = 14,
+        TextColor3             = GlassUI.Theme.Text,
         BackgroundTransparency = 1,
-        Size                 = UDim2.new(1, 0, 1, 0),
-        AutoButtonColor      = false,
-        Parent               = row,
+        Size                   = UDim2.new(1, 0, 1, 0),
+        AutoButtonColor        = false,
+        Parent                 = row,
     })
     ripple(row)
     track(btn.MouseEnter:Connect(function() tween(row, 0.15, { BackgroundTransparency = 0.2 }) end))
@@ -602,7 +587,6 @@ function Components.Toggle(tab, opts)
         BackgroundColor3 = GlassUI.Theme.Text, Parent = track_,
     })
     corner(knob, 999)
-    local glow = attachGlow(track_, 0.8)
 
     local api = {}
     function api.Set(_, v, skip)
@@ -703,8 +687,8 @@ end
 -- ---- DROPDOWN (single + multi) -------------------------------------------
 function Components.Dropdown(tab, opts)
     opts = opts or {}
-    local options = opts.Options or {}
-    local multi   = opts.Multi or false
+    local options  = opts.Options or {}
+    local multi    = opts.Multi or false
     local selected = multi and {} or (opts.Default or nil)
     if multi and type(opts.Default) == "table" then
         for _, v in ipairs(opts.Default) do selected[v] = true end
@@ -929,9 +913,8 @@ function Components.ColorPicker(tab, opts)
     corner(swatch, 4)
     attachGlow(swatch, 0.6)
 
-    -- SV square
     local sv = Create("ImageButton", {
-        Image = "rbxassetid://4155801252", -- sat/val gradient asset
+        Image = "rbxassetid://4155801252",
         BackgroundColor3 = Color3.fromHSV(h, 1, 1), Size = UDim2.new(1, 0, 0, 100),
         AutoButtonColor = false, Parent = row,
     })
@@ -941,7 +924,6 @@ function Components.ColorPicker(tab, opts)
         BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, Parent = sv,
     })
     corner(svCursor, 999)
-    -- Hue bar
     local hue = Create("ImageButton", {
         Image = "rbxassetid://3641079629", Size = UDim2.new(1, 0, 0, 14),
         AutoButtonColor = false, Parent = row,
@@ -992,12 +974,10 @@ function Components.ColorPicker(tab, opts)
     return api
 end
 
--- Register all built-ins into the public registry
 for name, fn in pairs(Components) do
     GlassUI.Registry[name] = fn
 end
 
--- Public hook to add brand-new component types at runtime
 function GlassUI:RegisterComponent(name, builder)
     self.Registry[name] = builder
 end
@@ -1017,7 +997,6 @@ local function bindComponent(tabObj, regName, methodName)
     end
 end
 
--- expose tab methods that map to registry components
 bindComponent(Tab, "Button",      "CreateButton")
 bindComponent(Tab, "Toggle",      "CreateToggle")
 bindComponent(Tab, "Slider",      "CreateSlider")
@@ -1029,7 +1008,6 @@ bindComponent(Tab, "Label",       "CreateLabel")
 bindComponent(Tab, "Paragraph",   "CreateParagraph")
 bindComponent(Tab, "Section",     "CreateSection")
 
--- Generic escape hatch for custom registered components
 function Tab:CreateElement(regName, ...)
     local builder = GlassUI.Registry[regName]
     if builder then return builder(self, ...) end
@@ -1048,7 +1026,6 @@ function Window:CreateTab(opts)
     local self_ = setmetatable({}, Tab)
     self_._window = self
 
-    -- tab button in sidebar
     local btn = Create("TextButton", {
         Text = "   " .. (opts.Name or "Tab"),
         Font = GlassUI.Theme.Font, TextSize = 14,
@@ -1059,7 +1036,6 @@ function Window:CreateTab(opts)
     })
     corner(btn, 8)
 
-    -- content page (scrolling)
     local page = Create("ScrollingFrame", {
         Visible = false, Active = true, BackgroundTransparency = 1,
         BorderSizePixel = 0, ScrollBarThickness = 3,
@@ -1080,7 +1056,16 @@ function Window:CreateTab(opts)
     return self_
 end
 
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ SelectTab: CHANGED – closes profile page and tracks current tab         │
+-- └─────────────────────────────────────────────────────────────────────────┘
 function Window:SelectTab(tabObj)
+    -- close profile page if it was open
+    if self._profilePage then
+        self._profilePage.Visible = false
+        self._profileOpen = false
+    end
+    self._currentTab = tabObj
     for _, t in ipairs(self.Tabs) do
         local active = (t == tabObj)
         t._content.Visible = active
@@ -1091,7 +1076,35 @@ function Window:SelectTab(tabObj)
     end
 end
 
--- Profile panel (avatar + username + status) shown at top of sidebar
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ _toggleProfilePage: NEW – toggle the profile/account page               │
+-- └─────────────────────────────────────────────────────────────────────────┘
+function Window:_toggleProfilePage()
+    self._profileOpen = not self._profileOpen
+    if self._profileOpen then
+        -- dim all tab buttons and hide tab pages
+        for _, t in ipairs(self.Tabs) do
+            t._content.Visible = false
+            tween(t._btn, 0.18, {
+                BackgroundTransparency = 1,
+                TextColor3 = GlassUI.Theme.SubText,
+            })
+        end
+        if self._profilePage then self._profilePage.Visible = true end
+    else
+        if self._profilePage then self._profilePage.Visible = false end
+        -- restore the last selected tab
+        if self._currentTab then
+            self:SelectTab(self._currentTab)
+        elseif #self.Tabs > 0 then
+            self:SelectTab(self.Tabs[1])
+        end
+    end
+end
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ SetUserProfile: CHANGED – panel is now clickable to open profile page   │
+-- └─────────────────────────────────────────────────────────────────────────┘
 function Window:SetUserProfile(opts)
     opts = opts or {}
     local userId = opts.UserId or (LocalPlayer and LocalPlayer.UserId)
@@ -1136,11 +1149,36 @@ function Window:SetUserProfile(opts)
         BackgroundTransparency = 1, Position = UDim2.new(0, 48, 0, 24),
         Size = UDim2.new(1, -52, 0, 16), Parent = p,
     })
+
+    -- Small arrow indicator in bottom-right corner to hint it's clickable
+    Create("TextLabel", {
+        Text = "›", Font = GlassUI.Theme.FontBold, TextSize = 14,
+        TextColor3 = GlassUI.Theme.SubText, BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 0, 1, 0),
+        Size = UDim2.new(0, 14, 0, 14), Parent = p,
+    })
+
+    -- Invisible hit button over the whole panel
+    local winRef = self
+    local hitBtn = Create("TextButton", {
+        Text = "", BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0), ZIndex = 10,
+        AutoButtonColor = false, Parent = p,
+    })
+    track(hitBtn.MouseEnter:Connect(function()
+        tween(p, 0.15, { BackgroundTransparency = 0.1 })
+    end))
+    track(hitBtn.MouseLeave:Connect(function()
+        tween(p, 0.15, { BackgroundTransparency = 0.3 })
+    end))
+    track(hitBtn.MouseButton1Click:Connect(function()
+        winRef:_toggleProfilePage()
+    end))
+
     self.Profile = p
     return p
 end
 
--- Key display chip (e.g. shows the active key / expiry)
 function Window:SetKeyDisplay(text)
     if self.KeyChip then
         self.KeyChip.Text = "  " .. text
@@ -1159,17 +1197,50 @@ end
 
 function Window:Notify(opts) return GlassUI:Notify(opts) end
 
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Toggle: CHANGED – minimises to just the topbar (not full hide)          │
+-- └─────────────────────────────────────────────────────────────────────────┘
 function Window:Toggle()
-    self.Open = not self.Open
-    if self.Open then
-        self.Root.Visible = true
-        tween(self.Root, 0.25, { GroupTransparency = 0 })
-        Acrylic:Add()
-    else
-        tween(self.Root, 0.25, { GroupTransparency = 1 })
+    if not self.Open then return end   -- already fully hidden, keybind handles show
+    self.Minimized = not self.Minimized
+    if self.Minimized then
+        self.Sidebar.Visible = false
+        self.Pages.Visible   = false
+        tween(self.Root, 0.2, { Size = UDim2.new(0, self._size.X.Offset, 0, 44) })
         Acrylic:Remove()
-        task.delay(0.26, function() if not self.Open then self.Root.Visible = false end end)
+    else
+        self.Sidebar.Visible = true
+        self.Pages.Visible   = true
+        tween(self.Root, 0.2, { Size = self._size })
+        Acrylic:Add()
     end
+end
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Hide: NEW – fully hides the window (recoverable via keybind)            │
+-- └─────────────────────────────────────────────────────────────────────────┘
+function Window:Hide()
+    self.Open = false
+    tween(self.Root, 0.25, { GroupTransparency = 1 })
+    Acrylic:Remove()
+    task.delay(0.26, function()
+        if not self.Open then self.Root.Visible = false end
+    end)
+end
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Show: NEW – restores window from fully hidden state                     │
+-- └─────────────────────────────────────────────────────────────────────────┘
+function Window:Show()
+    if self.Open and not self.Minimized then return end
+    self.Open      = true
+    self.Minimized = false
+    self.Sidebar.Visible = true
+    self.Pages.Visible   = true
+    self.Root.Size    = self._size
+    self.Root.Visible = true
+    tween(self.Root, 0.25, { GroupTransparency = 0 })
+    Acrylic:Add()
 end
 
 function Window:Destroy()
@@ -1184,7 +1255,6 @@ end
 function GlassUI:CreateWindow(opts)
     opts = opts or {}
 
-    -- one ScreenGui per session, reused for all windows + notifications
     if not self._screen or not self._screen.Parent then
         self._screen = Create("ScreenGui", {
             Name = "GlassUI_" .. tostring(math.random(1000, 9999)),
@@ -1198,15 +1268,17 @@ function GlassUI:CreateWindow(opts)
     end
 
     local win = setmetatable({}, Window)
-    win.Tabs = {}
-    win.Open = true
-    win._screen = self._screen
+    win.Tabs      = {}
+    win.Open      = true
+    win.Minimized = false                                      -- NEW
+    win._screen   = self._screen
+    win._size     = opts.Size or UDim2.new(0, 620, 0, 420)    -- NEW: stored for restore
 
-    -- root canvas group lets us fade the whole window at once
+    -- root canvas group
     local root = Create("CanvasGroup", {
         Name = "Window",
         AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = opts.Size or UDim2.new(0, 620, 0, 420),
+        Size = win._size,
         BackgroundColor3 = GlassUI.Theme.Background,
         BackgroundTransparency = 0.35,
         Parent = self._screen,
@@ -1215,18 +1287,18 @@ function GlassUI:CreateWindow(opts)
     attachGlow(root, 1.4)
     win.Root = root
 
+    -- dark backing (subtle depth)
     local backing = Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(12, 12, 18),
-        BackgroundTransparency = 0.75,      -- slightly transparent, still glass feel
+        BackgroundTransparency = 0.75,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 1, 0),
-        ZIndex = 1,                        -- behind all other content
+        ZIndex = 1,
         Parent = root,
     })
-    corner(backing, 14)                    -- match root radius
-    win.Root = root
+    corner(backing, 14)
 
-    -- top bar
+    -- top bar (draggable)
     local top = Create("Frame", {
         BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), Parent = root,
     })
@@ -1246,7 +1318,6 @@ function GlassUI:CreateWindow(opts)
         })
     end
 
-    -- close + minimize buttons
     local function topBtn(symbol, xoff, cb)
         local b = Create("TextButton", {
             Text = symbol, Font = GlassUI.Theme.FontBold, TextSize = 14,
@@ -1262,9 +1333,9 @@ function GlassUI:CreateWindow(opts)
         return b
     end
     topBtn("-", -42, function() win:Toggle() end)
-    topBtn("X", -12, function() win:Destroy() end)
+    topBtn("X", -12, function() win:Hide() end)    -- CHANGED: Hide not Destroy
 
-    -- sidebar (profile + key chip + tab list)
+    -- sidebar
     local sidebar = glassPanel({
         BackgroundColor3 = GlassUI.Theme.Surface, BackgroundTransparency = 0.4,
         Position = UDim2.new(0, 12, 0, 50), Size = UDim2.new(0, 170, 1, -62),
@@ -1280,7 +1351,7 @@ function GlassUI:CreateWindow(opts)
     })
     Create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = win.TabList })
 
-    -- pages container (right side)
+    -- pages container
     win.Pages = glassPanel({
         BackgroundColor3 = GlassUI.Theme.Surface, BackgroundTransparency = 0.45,
         Position = UDim2.new(0, 192, 0, 50), Size = UDim2.new(1, -204, 1, -62),
@@ -1288,7 +1359,84 @@ function GlassUI:CreateWindow(opts)
     })
     padding(win.Pages, 10)
 
-    -- optional auto profile
+    -- ┌─────────────────────────────────────────────────────────────────────┐
+    -- │ Profile page: NEW – shown when user clicks the profile panel        │
+    -- └─────────────────────────────────────────────────────────────────────┘
+    local profilePage = Create("ScrollingFrame", {
+        Visible = false, Active = true, BackgroundTransparency = 1,
+        BorderSizePixel = 0, ScrollBarThickness = 3,
+        ScrollBarImageColor3 = GlassUI.Theme.Accent,
+        Size = UDim2.new(1, 0, 1, 0), CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Parent = win.Pages,
+    })
+    Create("UIListLayout", {
+        Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = profilePage,
+    })
+    padding(profilePage, 4)
+    win._profilePage = profilePage
+    win._profileOpen = false
+
+    -- fake tab-like object so Components can parent into this page
+    local profileTab = { _content = profilePage }
+
+    -- helper: labelled read-only info row
+    local function infoRow(label, value)
+        local row = elementRow(profilePage, 36)
+        padding(row, 10)
+        Create("TextLabel", {
+            Text = label, Font = GlassUI.Theme.Font, TextSize = 13,
+            TextColor3 = GlassUI.Theme.SubText, TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1, Size = UDim2.new(0.45, 0, 1, 0), Parent = row,
+        })
+        Create("TextLabel", {
+            Text = value, Font = GlassUI.Theme.FontBold, TextSize = 12,
+            TextColor3 = GlassUI.Theme.Text, TextXAlignment = Enum.TextXAlignment.Right,
+            TextTruncate = Enum.TextTruncate.AtEnd, BackgroundTransparency = 1,
+            Position = UDim2.new(0.45, 0, 0, 0), Size = UDim2.new(0.55, 0, 1, 0),
+            Parent = row,
+        })
+    end
+
+    -- Detect executor name if possible
+    local executorName = "Unknown"
+    pcall(function()
+        if identifyexecutor then executorName = identifyexecutor() end
+    end)
+
+    -- Account section
+    Components.Section(profileTab, "Account")
+    infoRow("HWID",     "XXXX-XXXX-XXXX-XXXX")
+    infoRow("License",  "LIC-XXXX-XXXX-XXXX")
+    infoRow("Expiry",   "Never")
+    infoRow("Executor", executorName)
+
+    -- Glow settings section
+    Components.Section(profileTab, "Glow Settings")
+
+    Components.Dropdown(profileTab, {
+        Name    = "Animation",
+        Options = { "Static", "Breathe", "Pulse", "Flicker", "Wave", "Heartbeat" },
+        Default = GlassUI.Glow.Animation,
+        Callback = function(val) GlassUI:SetGlowAnimation(val) end,
+    })
+
+    Components.Toggle(profileTab, {
+        Name    = "Rainbow",
+        Default = GlassUI.Glow.Rainbow,
+        Callback = function(val) GlassUI:SetGlowRainbow(val) end,
+    })
+
+    Components.Slider(profileTab, {
+        Name     = "Brightness",
+        Min      = 0, Max = 100,
+        Default  = math.floor(GlassUI.Glow.Brightness * 100),
+        Suffix   = "%", Increment = 5,
+        Callback = function(val) GlassUI:SetGlowBrightness(val / 100) end,
+    })
+
+    -- optional auto profile + key
     if opts.Profile ~= false then
         win:SetUserProfile(opts.Profile or {})
     end
@@ -1302,7 +1450,7 @@ function GlassUI:CreateWindow(opts)
 end
 
 --==============================================================================
---  CONFIG SAVE / LOAD  (flag-based)
+--  CONFIG SAVE / LOAD
 --==============================================================================
 
 function GlassUI:GetConfig()
@@ -1361,13 +1509,13 @@ function GlassUI:LoadConfig(name)
 end
 
 --==============================================================================
---  KEY SYSTEM (optional gate before the menu loads)
+--  KEY SYSTEM
 --==============================================================================
 
 function GlassUI:CreateKeySystem(opts)
     opts = opts or {}
     local validKeys = opts.Keys or {}
-    local resultEvent = {}    -- tiny signal
+    local resultEvent = {}
     local fired = false
     local cb = nil
 
