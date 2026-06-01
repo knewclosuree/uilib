@@ -1208,19 +1208,11 @@ function GlassUI:CreateWindow(opts)
         AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = opts.Size or UDim2.new(0, 620, 0, 420),
         BackgroundColor3 = GlassUI.Theme.Background,
-        BackgroundTransparency = GlassUI.Theme.Glass,
+        BackgroundTransparency = 0.35,
         Parent = self._screen,
     })
     corner(root, 14)
     attachGlow(root, 1.4)
-    Create("UIGradient", {
-        Rotation = 90,
-        Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(200,200,220)),
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 1),
-        }),
-        Parent = root,
-    })
     win.Root = root
 
     local backing = Create("Frame", {
@@ -1232,16 +1224,6 @@ function GlassUI:CreateWindow(opts)
         Parent = root,
     })
     corner(backing, 14)                    -- match root radius
-
-    -- (optional) keep the top sheen gradient on the root itself
-    Create("UIGradient", {
-        Rotation = 90,
-        Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(200,200,220)),
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 1),
-        }),
-        Parent = root,
-    })
     win.Root = root
 
     -- top bar
