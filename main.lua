@@ -1225,7 +1225,7 @@ function GlassUI:CreateWindow(opts)
 
     local backing = Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(12, 12, 18),
-        BackgroundTransparency = 0.3,      -- slightly transparent, still glass feel
+        BackgroundTransparency = 0.75,      -- slightly transparent, still glass feel
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 1, 0),
         ZIndex = 1,                        -- behind all other content
